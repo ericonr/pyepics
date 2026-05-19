@@ -1767,15 +1767,14 @@ def put(chid, value, wait=False, timeout=30, callback=None,
         try:
             if ftype == dbr.STRING and isinstance(value, bytes):
                 # len('abc') --> 3, however this is one element for dbr.STRING ftype
-                count = 1
+                raise TypeError()
             else:
                 count = min(len(value), count)
 
             if count == 0:
                 count = nativecount
         except TypeError:
-            write('''PyEpics Warning:
-     value put() to array PV must be an array or sequence''')
+            raise ChannelAccessException('value put() to array PV must be an array or sequence')
     if ftype == dbr.CHAR and nativecount > 1 and isinstance(value, bytes):
         count += 1
         count = min(count, nativecount)
@@ -1805,12 +1804,8 @@ def put(chid, value, wait=False, timeout=30, callback=None,
             raise ChannelAccessException(errmsg % (repr(value), tname))
 
     else:
-        if isinstance(value, bytes):
-            if ftype == dbr.CHAR:
-                value = bytes2intlist(value)
-            elif ftype == dbr.STRING:
-                # we need to box value into a list so len(value)=1
-                value = [value]
+        if ftype == dbr.CHAR and isinstance(value, bytes):
+            value = bytes2intlist(value)
         try:
             ndata, nuser = len(data), len(value)
             for elem in range(min(ndata, nuser)):
