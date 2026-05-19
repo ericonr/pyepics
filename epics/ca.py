@@ -1781,6 +1781,9 @@ def put(chid, value, wait=False, timeout=30, callback=None,
         count = min(count, nativecount)
 
     data = (count*dbr.Map[ftype])()
+    def set_data(elem, value):
+        data[elem] = value
+
     if ftype == dbr.STRING:
         if isinstance(value, bytes):
             data[0].value = value
@@ -1796,9 +1799,9 @@ def put(chid, value, wait=False, timeout=30, callback=None,
         if isinstance(value, bytes) and isinstance(data[0], (int, )):
             value = int(value, base=0)
         try:
-            data[0] = value
+            set_data(0, value)
         except TypeError:
-            data[0] = type(data[0])(value)
+            set_data(0, type(data[0])(value))
         except:
             errmsg = "cannot put value '%s' to PV of type '%s'"
             tname  = dbr.Name(ftype).lower()
@@ -1809,9 +1812,8 @@ def put(chid, value, wait=False, timeout=30, callback=None,
             value = bytes2intlist(value)
         try:
             ndata, nuser = len(data), len(value)
-            if nuser > ndata:
-                value = value[:ndata]
-            data[:nuser] = list(value)
+            for elem in range(min(ndata, nuser)):
+                set_data(elem, value[elem])
 
         except (ValueError, IndexError):
             errmsg = "cannot put array data to PV of type '%s'"
