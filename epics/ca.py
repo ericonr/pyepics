@@ -1755,6 +1755,10 @@ def put(chid, value, wait=False, timeout=30, callback=None,
         pvname=pvname, data=callback_data
 
     """
+    # only deal with bytes objects in this function
+    if isinstance(value, str):
+        value = str2bytes(value)
+
     if ftype is None:
         ftype = field_type(chid)
     count = nativecount = element_count(chid)
@@ -1775,10 +1779,6 @@ def put(chid, value, wait=False, timeout=30, callback=None,
     if ftype == dbr.CHAR and nativecount > 1 and isinstance(value, (str, bytes)):
         count += 1
         count = min(count, nativecount)
-
-    # if needed convert to basic string/bytes git stform
-    if isinstance(value, str):
-        value = str2bytes(value)
 
     data = (count*dbr.Map[ftype])()
     if ftype == dbr.STRING:
