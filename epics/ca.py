@@ -36,7 +36,7 @@ try:
 except ImportError:
     pass
 
-from .utils import (str2bytes, bytes2str, strjoin, IOENCODING,
+from .utils import (str2bytes, bytes2str, strjoin, bytes2intlist, IOENCODING,
                     clib_search_path)
 from . import dbr
 
@@ -1809,8 +1809,7 @@ def put(chid, value, wait=False, timeout=30, callback=None,
 
     else:
         if ftype == dbr.CHAR and isinstance(value, bytes):
-            value = value.decode('ascii', 'replace')
-            value = [ord(i) for i in value] + [0, ]
+            value = bytes2intlist(value)
         try:
             ndata, nuser = len(data), len(value)
             if nuser > ndata:
