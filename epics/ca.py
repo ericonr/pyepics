@@ -1787,25 +1787,22 @@ def put(chid, value, wait=False, timeout=30, callback=None,
         else:
             for elem in range(min(count, len(value))):
                 data[elem].value = bytes(str(value[elem]), IOENCODING)
-    elif nativecount == 1:
-        if ftype == dbr.CHAR:
-            if isinstance(value, bytes):
-                value = value.decode('ascii', 'replace')
-                value = [ord(i) for i in value] + [0, ]
-            else:
-                data[0] = value
-        else:
-            # allow strings (even bits/hex) to be put to integer types
-            if isinstance(value, bytes) and isinstance(data[0], (int, )):
-                value = int(value, base=0)
-            try:
-                data[0] = value
-            except TypeError:
-                data[0] = type(data[0])(value)
-            except:
-                errmsg = "cannot put value '%s' to PV of type '%s'"
-                tname  = dbr.Name(ftype).lower()
-                raise ChannelAccessException(errmsg % (repr(value), tname))
+    elif nativecount == 1 and not (ftype == dbr.CHAR and isinstance(value, bytes)):
+        '''
+        writing a string for nativecount=1 with ftype=CHAR is the case of a char
+        waveform, so handle it in the final else block
+        '''
+        # allow strings (even bits/hex) to be put to integer types
+        if isinstance(value, bytes) and isinstance(data[0], (int, )):
+            value = int(value, base=0)
+        try:
+            data[0] = value
+        except TypeError:
+            data[0] = type(data[0])(value)
+        except:
+            errmsg = "cannot put value '%s' to PV of type '%s'"
+            tname  = dbr.Name(ftype).lower()
+            raise ChannelAccessException(errmsg % (repr(value), tname))
 
     else:
         if ftype == dbr.CHAR and isinstance(value, bytes):
