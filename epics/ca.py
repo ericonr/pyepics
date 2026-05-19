@@ -1765,7 +1765,7 @@ def put(chid, value, wait=False, timeout=30, callback=None,
     if count > 1:
         # check that data for array PVS is a list, array, or string
         try:
-            if ftype == dbr.STRING and isinstance(value, (str, bytes)):
+            if ftype == dbr.STRING and isinstance(value, bytes):
                 # len('abc') --> 3, however this is one element for dbr.STRING ftype
                 count = 1
             else:
@@ -1776,28 +1776,27 @@ def put(chid, value, wait=False, timeout=30, callback=None,
         except TypeError:
             write('''PyEpics Warning:
      value put() to array PV must be an array or sequence''')
-    if ftype == dbr.CHAR and nativecount > 1 and isinstance(value, (str, bytes)):
+    if ftype == dbr.CHAR and nativecount > 1 and isinstance(value, bytes):
         count += 1
         count = min(count, nativecount)
 
     data = (count*dbr.Map[ftype])()
     if ftype == dbr.STRING:
-        if isinstance(value, (str, bytes)):
+        if isinstance(value, bytes):
             data[0].value = value
         else:
             for elem in range(min(count, len(value))):
                 data[elem].value = bytes(str(value[elem]), IOENCODING)
     elif nativecount == 1:
         if ftype == dbr.CHAR:
-            if isinstance(value, (str, bytes)):
-                if isinstance(value, bytes):
-                    value = value.decode('ascii', 'replace')
+            if isinstance(value, bytes):
+                value = value.decode('ascii', 'replace')
                 value = [ord(i) for i in value] + [0, ]
             else:
                 data[0] = value
         else:
             # allow strings (even bits/hex) to be put to integer types
-            if isinstance(value, (str, bytes)) and isinstance(data[0], (int, )):
+            if isinstance(value, bytes) and isinstance(data[0], (int, )):
                 value = int(value, base=0)
             try:
                 data[0] = value
@@ -1809,9 +1808,8 @@ def put(chid, value, wait=False, timeout=30, callback=None,
                 raise ChannelAccessException(errmsg % (repr(value), tname))
 
     else:
-        if ftype == dbr.CHAR and isinstance(value, (str, bytes)):
-            if isinstance(value, bytes):
-                value = value.decode('ascii', 'replace')
+        if ftype == dbr.CHAR and isinstance(value, bytes):
+            value = value.decode('ascii', 'replace')
             value = [ord(i) for i in value] + [0, ]
         try:
             ndata, nuser = len(data), len(value)
