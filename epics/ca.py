@@ -2084,6 +2084,9 @@ def sg_put(gid, chid, value):
     count = element_count(chid)
     data  = (count*dbr.Map[ftype])()
 
+    if isinstance(value, str):
+        value = str2bytes(value)
+
     if ftype == dbr.STRING:
         if count == 1:
             data[0].value = value
@@ -2105,11 +2108,10 @@ def sg_put(gid, chid, value):
         # could consider using
         # numpy.fromstring(("%s%s" % (s, pythonb'\x00'*maxlen))[:maxlen],
         #                  dtype=numpy.uint8)
-        if ftype == dbr.CHAR and isinstance(value, (str, bytes)):
+        if ftype == dbr.CHAR and isinstance(value, bytes):
+            value = bytes2intlist(value)
             pad = [0]*(1+count-len(value))
-            if isinstance(value, bytes):
-                value = value.decode('ascii', 'replace')
-            value = ([ord(i) for i in value] + pad)[:count]
+            value = (value + pad)[:count]
 
         try:
             ndata = len(data)
