@@ -36,7 +36,7 @@ try:
 except ImportError:
     pass
 
-from .utils import (str2bytes, bytes2str, strjoin, bytes2intlist, IOENCODING,
+from .utils import (str2bytes, bytes2str, strjoin, bytes2intlist,
                     clib_search_path)
 from . import dbr
 
@@ -1782,15 +1782,12 @@ def put(chid, value, wait=False, timeout=30, callback=None,
 
     data = (count*dbr.Map[ftype])()
     def set_data(elem, value):
-        data[elem] = value
-
-    if ftype == dbr.STRING:
-        if isinstance(value, bytes):
-            data[0].value = value
+        if ftype == dbr.STRING:
+            data[elem].value = str2bytes(value)
         else:
-            for elem in range(min(count, len(value))):
-                data[elem].value = bytes(str(value[elem]), IOENCODING)
-    elif nativecount == 1 and not (ftype == dbr.CHAR and isinstance(value, bytes)):
+            data[elem] = value
+
+    if nativecount == 1 and not (ftype == dbr.CHAR and isinstance(value, bytes)):
         '''
         writing a string for nativecount=1 with ftype=CHAR is the case of a char
         waveform, so handle it in the final else block
@@ -1808,8 +1805,12 @@ def put(chid, value, wait=False, timeout=30, callback=None,
             raise ChannelAccessException(errmsg % (repr(value), tname))
 
     else:
-        if ftype == dbr.CHAR and isinstance(value, bytes):
-            value = bytes2intlist(value)
+        if isinstance(value, bytes):
+            if ftype == dbr.CHAR:
+                value = bytes2intlist(value)
+            elif ftype == dbr.STRING:
+                # we need to box value into a list so len(value)=1
+                value = [value]
         try:
             ndata, nuser = len(data), len(value)
             for elem in range(min(ndata, nuser)):
