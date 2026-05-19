@@ -14,6 +14,7 @@ from math import log10
 from types import SimpleNamespace
 from . import ca
 from . import dbr
+from .utils import strjoin
 
 _PVcache_ = {}
 
@@ -720,12 +721,8 @@ class PV():
                     # and when it fails, make it a list of one scalar value
                     val = [val]
 
-            if 0 in val:
-                firstnull  = val.index(0)
-            else:
-                firstnull = len(val)
             try:
-                cval = ''.join([chr(i) for i in val[:firstnull]]).rstrip()
+                cval = strjoin('', [bytes(val)]).rstrip(chr(0))
             except ValueError:
                 cval = ''
             self._args['char_value'] = cval

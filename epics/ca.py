@@ -36,7 +36,7 @@ try:
 except ImportError:
     pass
 
-from .utils import (str2bytes, bytes2str, strjoin, IOENCODING,
+from .utils import (str2bytes, bytes2str, strjoin, bytes2intlist,
                     clib_search_path)
 from . import dbr
 
@@ -1755,69 +1755,61 @@ def put(chid, value, wait=False, timeout=30, callback=None,
         pvname=pvname, data=callback_data
 
     """
+    # only deal with bytes objects in this function
+    if isinstance(value, str):
+        value = str2bytes(value)
+
     if ftype is None:
         ftype = field_type(chid)
     count = nativecount = element_count(chid)
     if count > 1:
         # check that data for array PVS is a list, array, or string
         try:
-            if ftype == dbr.STRING and isinstance(value, (str, bytes)):
+            if ftype == dbr.STRING and isinstance(value, bytes):
                 # len('abc') --> 3, however this is one element for dbr.STRING ftype
-                count = 1
+                raise TypeError()
             else:
                 count = min(len(value), count)
 
             if count == 0:
                 count = nativecount
         except TypeError:
-            write('''PyEpics Warning:
-     value put() to array PV must be an array or sequence''')
-    if ftype == dbr.CHAR and nativecount > 1 and isinstance(value, (str, bytes)):
+            raise ChannelAccessException('value put() to array PV must be an array or sequence')
+    if ftype == dbr.CHAR and nativecount > 1 and isinstance(value, bytes):
         count += 1
         count = min(count, nativecount)
 
-    # if needed convert to basic string/bytes git stform
-    if isinstance(value, str):
-        value = bytes(value, IOENCODING)
-
     data = (count*dbr.Map[ftype])()
-    if ftype == dbr.STRING:
-        if isinstance(value, (str, bytes)):
-            data[0].value = value
+    def set_data(elem, value):
+        if ftype == dbr.STRING:
+            data[elem].value = str2bytes(value)
         else:
-            for elem in range(min(count, len(value))):
-                data[elem].value = bytes(str(value[elem]), IOENCODING)
-    elif nativecount == 1:
-        if ftype == dbr.CHAR:
-            if isinstance(value, (str, bytes)):
-                if isinstance(value, bytes):
-                    value = value.decode('ascii', 'replace')
-                value = [ord(i) for i in value] + [0, ]
-            else:
-                data[0] = value
-        else:
-            # allow strings (even bits/hex) to be put to integer types
-            if isinstance(value, (str, bytes)) and isinstance(data[0], (int, )):
-                value = int(value, base=0)
-            try:
-                data[0] = value
-            except TypeError:
-                data[0] = type(data[0])(value)
-            except:
-                errmsg = "cannot put value '%s' to PV of type '%s'"
-                tname  = dbr.Name(ftype).lower()
-                raise ChannelAccessException(errmsg % (repr(value), tname))
+            data[elem] = value
+
+    if nativecount == 1 and not (ftype == dbr.CHAR and isinstance(value, bytes)):
+        '''
+        writing a string for nativecount=1 with ftype=CHAR is the case of a char
+        waveform, so handle it in the final else block
+        '''
+        # allow strings (even bits/hex) to be put to integer types
+        if isinstance(value, bytes) and isinstance(data[0], (int, )):
+            value = int(value, base=0)
+        try:
+            set_data(0, value)
+        except TypeError:
+            set_data(0, type(data[0])(value))
+        except:
+            errmsg = "cannot put value '%s' to PV of type '%s'"
+            tname  = dbr.Name(ftype).lower()
+            raise ChannelAccessException(errmsg % (repr(value), tname))
 
     else:
-        if ftype == dbr.CHAR and isinstance(value, (str, bytes)):
-            if isinstance(value, bytes):
-                value = value.decode('ascii', 'replace')
-            value = [ord(i) for i in value] + [0, ]
+        if ftype == dbr.CHAR and isinstance(value, bytes):
+            value = bytes2intlist(value)
         try:
             ndata, nuser = len(data), len(value)
-            if nuser > ndata:
-                value = value[:ndata]
-            data[:nuser] = list(value)
+            for elem in range(min(ndata, nuser)):
+                set_data(elem, value[elem])
 
         except (ValueError, IndexError):
             errmsg = "cannot put array data to PV of type '%s'"
@@ -2092,6 +2084,9 @@ def sg_put(gid, chid, value):
     count = element_count(chid)
     data  = (count*dbr.Map[ftype])()
 
+    if isinstance(value, str):
+        value = str2bytes(value)
+
     if ftype == dbr.STRING:
         if count == 1:
             data[0].value = value
@@ -2113,11 +2108,10 @@ def sg_put(gid, chid, value):
         # could consider using
         # numpy.fromstring(("%s%s" % (s, pythonb'\x00'*maxlen))[:maxlen],
         #                  dtype=numpy.uint8)
-        if ftype == dbr.CHAR and isinstance(value, (str, bytes)):
+        if ftype == dbr.CHAR and isinstance(value, bytes):
+            value = bytes2intlist(value)
             pad = [0]*(1+count-len(value))
-            if isinstance(value, bytes):
-                value = value.decode('ascii', 'replace')
-            value = ([ord(i) for i in value] + pad)[:count]
+            value = (value + pad)[:count]
 
         try:
             ndata = len(data)

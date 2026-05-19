@@ -49,6 +49,14 @@ def strjoin(sep, seq):
         seq = tmp
     return sep.join(seq)
 
+def bytes2intlist(st1):
+    'bytes to null-terminated int list conversion'
+    tmp = list(st1)
+    if len(tmp) and tmp[-1] == 0:
+        return tmp
+    else:
+        return tmp + [0, ]
+
 
 def clib_search_path(lib):
     '''Assemble path to c library.
