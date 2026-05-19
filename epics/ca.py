@@ -1778,7 +1778,7 @@ def put(chid, value, wait=False, timeout=30, callback=None,
 
     # if needed convert to basic string/bytes git stform
     if isinstance(value, str):
-        value = bytes(value, IOENCODING)
+        value = str2bytes(value)
 
     data = (count*dbr.Map[ftype])()
     if ftype == dbr.STRING:
